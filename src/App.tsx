@@ -15,6 +15,19 @@ const PATTERN_GROUPS: PatternGroup[] = [
   { id: 'where', label: 'Where', options: ['where is', 'where can', 'where do'] },
 ]
 
+const DATE_FILTERS = [
+  { id: 'any', label: 'Any time', value: '' },
+  { id: 'day', label: 'Past 24 hours', value: 'qdr:d' },
+  { id: 'week', label: 'Past week', value: 'qdr:w' },
+  { id: 'month', label: 'Past month', value: 'qdr:m' },
+  { id: 'year', label: 'Past year', value: 'qdr:y' },
+]
+
+const SORT_OPTIONS = [
+  { id: 'relevance', label: 'Relevance', value: '' },
+  { id: 'date', label: 'Most recent', value: 'sort:date' },
+]
+
 const STORAGE_KEY = 'quora-search-state'
 const DARK_KEY = 'quora-search-dark'
 
@@ -36,6 +49,11 @@ export default function App() {
     return map
   })
   const [darkMode, setDarkMode] = useState(false)
+  
+  // Advanced Filters
+  const [dateFilter, setDateFilter] = useState('any')
+  const [sortBy, setSortBy] = useState('relevance')
+  const [showAdvanced, setShowAdvanced] = useState(false)
 
   // refs for group-level indeterminate checkboxes
   const groupRefs = useRef<Record<string, HTMLInputElement | null>>({})
@@ -52,6 +70,9 @@ export default function App() {
         if (s.selectedPatterns && typeof s.selectedPatterns === 'object') {
           setSelectedPatterns((prev) => ({ ...prev, ...s.selectedPatterns }))
         }
+        if (typeof s.dateFilter === 'string') setDateFilter(s.dateFilter)
+        if (typeof s.sortBy === 'string') setSortBy(s.sortBy)
+        if (typeof s.showAdvanced === 'boolean') setShowAdvanced(s.showAdvanced)
       }
       const d = localStorage.getItem(DARK_KEY)
       if (d === 'true') setDarkMode(true)
@@ -62,9 +83,9 @@ export default function App() {
 
   // Persist state
   useEffect(() => {
-    const payload = { topic, customKeyword, selectedPatterns, otherPatternsText }
+    const payload = { topic, customKeyword, selectedPatterns, otherPatternsText, dateFilter, sortBy, showAdvanced }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
-  }, [topic, customKeyword, selectedPatterns, otherPatternsText])
+  }, [topic, customKeyword, selectedPatterns, otherPatternsText, dateFilter, sortBy, showAdvanced])
 
   // Dark mode side effect
   useEffect(() => {
@@ -123,12 +144,27 @@ export default function App() {
     setCustomKeyword('')
     setSelectedPatterns(getInitialSelected())
     setOtherPatternsText('')
+    setDateFilter('any')
+    setSortBy('relevance')
     setCopied(false)
     localStorage.removeItem(STORAGE_KEY)
   }
 
   const handleSearch = () => {
-    const url = 'https://www.google.com/search?q=' + encodeURIComponent(query)
+    let url = 'https://www.google.com/search?q=' + encodeURIComponent(query)
+    
+    // Add date filter
+    const selectedDateFilter = DATE_FILTERS.find(f => f.id === dateFilter)
+    if (selectedDateFilter && selectedDateFilter.value) {
+      url += `&tbs=${selectedDateFilter.value}`
+    }
+    
+    // Add sort option
+    const selectedSort = SORT_OPTIONS.find(s => s.id === sortBy)
+    if (selectedSort && selectedSort.value) {
+      url += `&tbs=${selectedSort.value}`
+    }
+    
     window.open(url, '_blank', 'noopener')
   }
 
@@ -266,7 +302,7 @@ export default function App() {
                             </div>
                           </div>
                           {expanded[g.id] && (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 pt-2">
                               {g.options.map((o) => (
                                 <label key={o} className="inline-flex items-center group">
                                   <input
@@ -336,6 +372,118 @@ export default function App() {
                   Extra keyword to refine your search
                 </p>
               </div>
+
+              {/* Advanced Filters */}
+              <div className="border-t border-gray-200/50 dark:border-gray-700/50 pt-6">
+                <button
+                  className="flex items-center justify-between w-full text-left mb-4"
+                  onClick={() => setShowAdvanced(!showAdvanced)}
+                >
+                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2 cursor-pointer">
+                    <svg className="w-4 h-4 text-indigo-600 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                    </svg>
+                    Advanced Filters
+                  </label>
+                  <svg 
+                    className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${showAdvanced ? 'rotate-180' : ''}`}
+                    fill="none" 
+                    viewBox="0 0 24 24" 
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {showAdvanced && (
+                  <div className="space-y-4 animate-fade-in">
+                    {/* Date Filter */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                        <svg className="w-4 h-4 inline mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        Date Range
+                      </label>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {DATE_FILTERS.map((filter) => (
+                          <label key={filter.id} className="inline-flex items-center group">
+                            <input
+                              type="radio"
+                              className="sr-only peer"
+                              name="dateFilter"
+                              value={filter.id}
+                              checked={dateFilter === filter.id}
+                              onChange={(e) => setDateFilter(e.target.value)}
+                            />
+                            <span className="pattern-chip peer-checked:bg-gradient-to-r peer-checked:from-indigo-600 peer-checked:to-blue-600 peer-checked:text-white peer-checked:border-indigo-600 peer-checked:shadow-lg peer-checked:shadow-indigo-500/30 w-full justify-center text-center">
+                              <svg viewBox="0 0 20 20" fill="none" className="w-3.5 h-3.5 opacity-0 peer-checked:opacity-100 transition-all" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                                <path d="M4.5 10.5l3 3 8-8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                              <span className="truncate text-xs">{filter.label}</span>
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Sort Options */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">
+                        <svg className="w-4 h-4 inline mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+                        </svg>
+                        Sort By
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {SORT_OPTIONS.map((option) => (
+                          <label key={option.id} className="inline-flex items-center group">
+                            <input
+                              type="radio"
+                              className="sr-only peer"
+                              name="sortBy"
+                              value={option.id}
+                              checked={sortBy === option.id}
+                              onChange={(e) => setSortBy(e.target.value)}
+                            />
+                            <span className="pattern-chip peer-checked:bg-gradient-to-r peer-checked:from-indigo-600 peer-checked:to-blue-600 peer-checked:text-white peer-checked:border-indigo-600 peer-checked:shadow-lg peer-checked:shadow-indigo-500/30 w-full justify-center text-center">
+                              <svg viewBox="0 0 20 20" fill="none" className="w-3.5 h-3.5 opacity-0 peer-checked:opacity-100 transition-all" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                                <path d="M4.5 10.5l3 3 8-8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                              <span className="truncate text-xs">{option.label}</span>
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Active Filters Summary */}
+                    {(dateFilter !== 'any' || sortBy !== 'relevance') && (
+                      <div className="mt-3 p-3 bg-indigo-50/50 dark:bg-indigo-950/20 rounded-lg border border-indigo-100 dark:border-indigo-900/30">
+                        <p className="text-xs font-medium text-indigo-700 dark:text-indigo-300 mb-2">Active Filters:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {dateFilter !== 'any' && (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-white dark:bg-gray-800 rounded-md text-xs border border-indigo-200 dark:border-indigo-800">
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                              {DATE_FILTERS.find(f => f.id === dateFilter)?.label}
+                            </span>
+                          )}
+                          {sortBy !== 'relevance' && (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-white dark:bg-gray-800 rounded-md text-xs border border-indigo-200 dark:border-indigo-800">
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+                              </svg>
+                              {SORT_OPTIONS.find(s => s.id === sortBy)?.label}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </section>
 
@@ -361,6 +509,30 @@ export default function App() {
                 rows={6}
                 className="preview resize-none"
               />
+              
+              {/* Show active filters in preview */}
+              {(dateFilter !== 'any' || sortBy !== 'relevance') && (
+                <div className="mt-3 p-2.5 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 rounded-lg border border-amber-200 dark:border-amber-900/30">
+                  <p className="text-xs font-medium text-amber-800 dark:text-amber-300 mb-1.5 flex items-center gap-1.5">
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    Filters will be applied on search:
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {dateFilter !== 'any' && (
+                      <span className="text-xs px-2 py-0.5 bg-white dark:bg-gray-800 rounded border border-amber-300 dark:border-amber-800 text-amber-700 dark:text-amber-300">
+                        {DATE_FILTERS.find(f => f.id === dateFilter)?.label}
+                      </span>
+                    )}
+                    {sortBy !== 'relevance' && (
+                      <span className="text-xs px-2 py-0.5 bg-white dark:bg-gray-800 rounded border border-amber-300 dark:border-amber-800 text-amber-700 dark:text-amber-300">
+                        {SORT_OPTIONS.find(s => s.id === sortBy)?.label}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
               
               <div className="mt-4 pt-4 border-t border-gray-200/50 dark:border-gray-700/50">
                 <div className="flex items-center gap-3 flex-wrap">
